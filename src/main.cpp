@@ -1,8 +1,11 @@
 #include <iostream>
 
-using namespace std;
+#include "News/NewsManager.h"
 
 int main() {
-    cout << "Hello, World!" << endl;
+
+    NewsManager::getInstance().UpdateArticles("Apple");
+
+
     return 0;
 }

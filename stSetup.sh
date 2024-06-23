@@ -30,4 +30,19 @@ if confirm; then
     cd llama.cpp
     cmake -B build
     cmake --build build --config Release
+    cd ../
+fi
+
+echo "Install Llama-2-7B-GGUF quantized Model?"
+if confirm; then
+    model_url="https://huggingface.co/TheBloke/Llama-2-7B-GGUF/resolve/main/llama-2-7b.Q5_K_M.gguf?download=true"
+    mkdir llama.cpp/models
+    destination_folder="llama.cpp/models"
+    wget -P "$destination_folder" "$model_url"
+    mv llama.cpp/models/llama-2-7b.Q5_K_M.gguf?download=true llama.cpp/models/llama-2-7b.Q5_K_M.gguf
+fi
+
+echo "Install required packages?"
+if confirm; then 
+    sudo apt-get install libcurl4-openssl-dev
 fi
