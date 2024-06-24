@@ -1,8 +1,10 @@
 #include <string>
 
 struct NewsArticle {
-    std::string content;
+    std::string source;
+    std::string title;
+    std::string description;
+    std::string URL;
+    std::string publishedAt;
 
-
-    NewsArticle(std::string articleIn);
 };

@@ -1,10 +1,16 @@
+#include "LlamaModel.h"
 #include <string>
 #include <array>
 #include <memory>
 
 using namespace std;
 
-string runLLaMA(const string& input) {
+LlamaModel::LlamaModel() 
+{
+
+}
+
+string LlamaModel::runLLaMA(const string& input) {
     string command = "../llama.cpp/build/bin/llama-cli -m ../llama.cpp/models/llama-2-7b.Q5_K_M.gguf -p ";
     string fullCommand = command + " \"" + input + "\" -e";
     
