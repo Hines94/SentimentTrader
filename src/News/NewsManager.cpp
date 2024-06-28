@@ -5,6 +5,7 @@
 #include <memory>
 #include <stdexcept>
 #include <array>
+#include <containers>
 
 #include <chrono>
 #include <iomanip>
@@ -51,7 +52,7 @@ vector<NewsArticle>* NewsManager::GetNewsArticles(string checkName)
     return nullptr;
 }
 
-void NewsManager::UpdateArticles(string checkName)
+void NewsManager::UpdateArticles(string checkName, bool SaveToFile)
 {
     CURL* curl;
     CURLcode res;
@@ -86,16 +87,25 @@ void NewsManager::UpdateArticles(string checkName)
 
     curl_global_cleanup();
 
-    saveNewsToFile(checkName,response);
+    if(SaveToFile) {
+        saveNewsToFile(checkName,response);
+    }
 
-    //TODO: Update our generated articles
+    // Duplicate check in case we have already seen articles (no re-train)
+    vector<NewsArticle> existing = articles[checkName];
+    LoadArticles(checkName,response);
+    performDeduplication(checkName,existing);
 }
 
-void NewsManager::LoadArticles(std::string checkName)
+void NewsManager::LoadArticlesFromFile(std::string checkName) {
+    LoadArticles(checkName,utils::LoadDataFromFile(getFileLoc(checkName)));
+}
+
+void NewsManager::LoadArticles(std::string checkName,std::string rawInput)
 {
     articles[checkName] = vector<NewsArticle>();
 
-    nlohmann::json_abi_v3_11_3::json fileData = nlohmann::json_abi_v3_11_3::json::parse(utils::LoadDataFromFile(getFileLoc(checkName)));
+    nlohmann::json_abi_v3_11_3::json fileData = nlohmann::json_abi_v3_11_3::json::parse(rawInput);
 
     // Check if the "articles" field exists
     if (fileData.contains("articles")) {
@@ -118,6 +128,33 @@ void NewsManager::LoadArticles(std::string checkName)
     } else {
         std::cout << "No articles found in the JSON data." << std::endl;
     }
+}
+
+void NewsManager::performDeduplication(std::string checkName, std::vector<NewsArticle> oldArticles)
+{
+    std::unordered_set<std::string> existingTitles;
+    for(const auto& a : oldArticles) {
+        existingTitles.insert(a.title);
+    }
+
+    std::vector<NewsArticle> deduplicatedNewArticles;
+    int duplicateCount = 0;
+    int newCount = 0;
+
+    for (const auto& a : articles[checkName]) {
+        if (existingTitles.find(a.title) != existingTitles.end()) {
+            // Article is a duplicate
+            duplicateCount++;
+        } else {
+            // Article is new
+            newCount++;
+            deduplicatedNewArticles.push_back(a);
+        }
+    }
+
+    articles[checkName] = deduplicatedNewArticles;
+
+    cout << "Deduplicated articles. New: " << newCount << " Duplicates: " << duplicateCount << endl;
 }
 
 NewsManager::NewsManager() 

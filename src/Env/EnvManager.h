@@ -9,6 +9,8 @@ public:
     }
 
     std::string getParam(std::string paramName);
+    bool getBoolParam(std::string paramName);
+    int getIntParam(std::string paramName);
 
 
     EnvManager(EnvManager const&) = delete;

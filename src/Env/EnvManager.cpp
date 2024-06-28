@@ -38,3 +38,17 @@ string EnvManager::getParam(string paramName)
         return "";
     }
 }
+
+bool EnvManager::getBoolParam(std::string paramName)
+{
+    string p = getParam(paramName);
+    for (char &ch : p) {
+        ch = std::tolower(ch);
+    }
+    return p == "true";
+}
+
+int EnvManager::getIntParam(std::string paramName)
+{
+    return atoi(getParam(paramName).c_str());
+}

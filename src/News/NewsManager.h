@@ -12,16 +12,19 @@ public:
 
     std::vector<NewsArticle>* GetNewsArticles(std::string checkName);
 
-    // TODO: update/save previous
-    void UpdateArticles(std::string checkName);
+    void UpdateArticles(std::string checkName, bool SaveToFile);
 
     // Load from a file
-    void LoadArticles(std::string checkName);
+    void LoadArticlesFromFile(std::string checkName);
 
     NewsManager(NewsManager const&) = delete;
     void operator=(NewsManager const&) = delete;
 
 private:
+    void LoadArticles(std::string checkName,std::string rawInput);
+    // Will simply remove any duplicates
+    void performDeduplication(std::string checkName,std::vector<NewsArticle> oldArticles);
+
     NewsManager();
 
     // Mapped by keyword

@@ -8,4 +8,6 @@ public:
     static void SaveDataToFile(std::string fileLoc,std::string Data);
 
     static std::string LoadDataFromFile(std::string fileLoc);
+
+    static std::string GetReadableTime();
 };

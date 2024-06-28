@@ -7,6 +7,8 @@ public:
         return instance;
     }
 
+    void InitLlama(const std::string& path);
+
     std::string runLLaMA(const std::string& input);
 
     LlamaModel(LlamaModel const&) = delete;
@@ -14,4 +16,6 @@ public:
 
 private:
     LlamaModel();
+    ~LlamaModel();
+    FILE* pipe;
 };

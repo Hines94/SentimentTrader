@@ -3,6 +3,9 @@
 #include <filesystem>
 #include <fstream> 
 #include <sstream>
+#include <chrono> 
+#include <ctime> 
+#include <iomanip>
 
 namespace fs = std::filesystem;
 
@@ -56,4 +59,28 @@ std::string utils::LoadDataFromFile(std::string fileLoc)
     ss << file.rdbuf(); // Read the file contents into the string stream
 
     return ss.str(); // Return the string containing the file contents
+}
+
+std::string utils::GetReadableTime()
+{
+    // Get the current time as a time_point
+    auto now = std::chrono::system_clock::now();
+    
+    // Convert to time_t to get a time representation we can format
+    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+
+    // Convert to tm structure for local timezone
+    std::tm localTime;
+#if defined(_WIN32) || defined(_WIN64)
+    localtime_s(&localTime, &currentTime); // Windows
+#else
+    localtime_r(&currentTime, &localTime); // POSIX
+#endif
+
+    // Create a string stream to hold the formatted time
+    std::ostringstream oss;
+    oss << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S");
+
+    // Return the formatted string
+    return oss.str();
 }
