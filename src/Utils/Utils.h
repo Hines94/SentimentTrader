@@ -9,5 +9,7 @@ public:
 
     static std::string LoadDataFromFile(std::string fileLoc);
 
+    static bool fileExists(std::string fileLoc);
+
     static std::string GetReadableTime();
 };

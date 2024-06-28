@@ -5,7 +5,6 @@
 #include <memory>
 #include <stdexcept>
 #include <array>
-#include <containers>
 
 #include <chrono>
 #include <iomanip>
@@ -23,22 +22,24 @@ size_t writeCallback(char* ptr, size_t size, size_t nmemb, std::string* data) {
     return size * nmemb;
 }
 
-std::string getDate30DaysAgo() {
-    // Get current time as a time_point
-    auto now = std::chrono::system_clock::now();
-    
+std::chrono::_V2::system_clock::time_point lastUpdate;
+std::string getUpdateFromTime() {
     // Subtract 30 days (30 * 24 * 60 * 60 seconds) from the current time
-    auto thirty_days_ago = now - std::chrono::hours(24 * 30);
+    auto checkPoint = std::chrono::system_clock::now() - std::chrono::hours(24 * 30);
+
+    if(lastUpdate != std::chrono::system_clock::time_point{}) {
+        checkPoint = lastUpdate;
+    }
     
     // Convert the time_point to a time_t for formatting
-    std::time_t thirty_days_ago_time_t = std::chrono::system_clock::to_time_t(thirty_days_ago);
+    std::time_t thirty_days_ago_time_t = std::chrono::system_clock::to_time_t(checkPoint);
     
     // Convert to tm struct for local time
     std::tm* tm_thirty_days_ago = std::localtime(&thirty_days_ago_time_t);
     
     // Create a string stream to format the date
     std::ostringstream oss;
-    oss << std::put_time(tm_thirty_days_ago, "%Y-%m-%d"); // Format: YYYY-MM-DD
+    oss << std::put_time(tm_thirty_days_ago, "%Y-%m-%dT%H:%M:%S"); // Format: YYYY-MM-DD
 
     return oss.str(); // Return the formatted date string
 }
@@ -52,7 +53,7 @@ vector<NewsArticle>* NewsManager::GetNewsArticles(string checkName)
     return nullptr;
 }
 
-void NewsManager::UpdateArticles(string checkName, bool SaveToFile)
+void NewsManager::UpdateArticles(string checkName)
 {
     CURL* curl;
     CURLcode res;
@@ -64,7 +65,10 @@ void NewsManager::UpdateArticles(string checkName, bool SaveToFile)
     if (curl) {
         // Construct the URL with required parameters
         std::string url = "https://newsapi.org/v2/everything";
-        std::string reqOptions = "?q=" + checkName + "&from=" + getDate30DaysAgo() + "&sortBy=publishedAt";
+        std::string reqOptions = "?q=" + checkName + "&from=" + getUpdateFromTime() + "&sortBy=publishedAt";
+
+        cout << "Requesting new news: " << url << reqOptions << endl;
+        lastUpdate = std::chrono::system_clock::now();
 
         // Append API key to the URL
         url += reqOptions + "&apiKey=" + EnvManager::getInstance().getParam("NEWS_API_KEY");
@@ -87,18 +91,21 @@ void NewsManager::UpdateArticles(string checkName, bool SaveToFile)
 
     curl_global_cleanup();
 
-    if(SaveToFile) {
-        saveNewsToFile(checkName,response);
-    }
-
     // Duplicate check in case we have already seen articles (no re-train)
     vector<NewsArticle> existing = articles[checkName];
     LoadArticles(checkName,response);
     performDeduplication(checkName,existing);
+
+    // Save to file if we want to
+    if(EnvManager::getInstance().getBoolParam("SAVE_ARTICLES")) {
+        saveNewsToFile(checkName,articles[checkName]);
+    }
 }
 
 void NewsManager::LoadArticlesFromFile(std::string checkName) {
+    vector<NewsArticle> oldArticles = articles[checkName];
     LoadArticles(checkName,utils::LoadDataFromFile(getFileLoc(checkName)));
+    performDeduplication(checkName,oldArticles);
 }
 
 void NewsManager::LoadArticles(std::string checkName,std::string rawInput)
@@ -132,29 +139,25 @@ void NewsManager::LoadArticles(std::string checkName,std::string rawInput)
 
 void NewsManager::performDeduplication(std::string checkName, std::vector<NewsArticle> oldArticles)
 {
-    std::unordered_set<std::string> existingTitles;
-    for(const auto& a : oldArticles) {
-        existingTitles.insert(a.title);
-    }
-
     std::vector<NewsArticle> deduplicatedNewArticles;
     int duplicateCount = 0;
     int newCount = 0;
 
     for (const auto& a : articles[checkName]) {
-        if (existingTitles.find(a.title) != existingTitles.end()) {
+        if (priorTitles[checkName].find(a.title) != priorTitles[checkName].end()) {
             // Article is a duplicate
             duplicateCount++;
         } else {
             // Article is new
             newCount++;
             deduplicatedNewArticles.push_back(a);
+            priorTitles[checkName].insert(a.title);
         }
     }
 
     articles[checkName] = deduplicatedNewArticles;
 
-    cout << "Deduplicated articles. New: " << newCount << " Duplicates: " << duplicateCount << endl;
+    cout << "Deduplicated " << checkName <<  " articles. New: " << newCount << " Duplicates: " << duplicateCount << endl;
 }
 
 NewsManager::NewsManager() 
@@ -162,10 +165,35 @@ NewsManager::NewsManager()
 
 }
 
-void NewsManager::saveNewsToFile(std::string checkName,std::string responseData)
+nlohmann::json getArticleAsJson(NewsArticle a)
+{
+    nlohmann::json j;
+    j["source"] = { {"name", a.source} };
+    j["title"] = a.title;
+    j["description"] = a.description;
+    j["url"] = a.URL;
+    j["publishedAt"] = a.publishedAt;
+    return j;
+}
+
+void NewsManager::saveNewsToFile(std::string checkName,std::vector<NewsArticle> newArticles)
 {   
     utils::CreateDirectory("News");
-    utils::SaveDataToFile(getFileLoc(checkName),responseData);
+
+    nlohmann::json_abi_v3_11_3::json fileData;
+    if(utils::fileExists(getFileLoc(checkName))) {
+        fileData = nlohmann::json_abi_v3_11_3::json::parse(utils::LoadDataFromFile(getFileLoc(checkName)));
+    }
+    // Fresh file?
+    if (!fileData.contains("articles") || !fileData["articles"].is_array()) {
+        fileData["articles"] = nlohmann::json::array();
+    }
+    // Append new files
+    for (const auto& article : newArticles) {
+        fileData["articles"].push_back(getArticleAsJson(article));
+    }
+    // Save out new files
+    utils::SaveDataToFile(getFileLoc(checkName),fileData.dump(4));
 }
 
 std::string NewsManager::getFileLoc(std::string checkName)

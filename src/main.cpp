@@ -12,10 +12,11 @@ int main() {
         // Get the start time
         auto start = std::chrono::steady_clock::now();
 
-        std:: cout << "Running update cycle" << std::endl;
+        std:: cout << "------ Starting update cycle ------" << std::endl;
 
         // Get new articles / prices
-        NewsManager::getInstance().UpdateArticles("Tesla",false);
+        NewsManager::getInstance().LoadArticlesFromFile("Tesla");
+        NewsManager::getInstance().UpdateArticles("Tesla");
 
         // If trade mode enabled then first check for strong signals
         if(EnvManager::getInstance().getBoolParam("B_RUN_TRADES")) {
@@ -26,6 +27,9 @@ int main() {
         // Update LLM with new articles
         // LlamaModel::getInstance().InitLlama(EnvManager::getInstance().getParam("MODEL_PATH"));
         std::cout << "TODO: Update Llama" << std::endl;
+
+
+        std:: cout << "------ End update cycle ------" << std::endl;
 
         // Await for next cycle of articles
         auto end = std::chrono::steady_clock::now();

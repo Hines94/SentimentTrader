@@ -6,6 +6,7 @@
 #include <chrono> 
 #include <ctime> 
 #include <iomanip>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 
@@ -20,7 +21,6 @@ bool utils::CreateDirectory(std::string directory)
             return false;
         }
     } else {
-        std::cout << "Directory already exists: " << directory << std::endl;
         return true;
     }
 }
@@ -59,6 +59,11 @@ std::string utils::LoadDataFromFile(std::string fileLoc)
     ss << file.rdbuf(); // Read the file contents into the string stream
 
     return ss.str(); // Return the string containing the file contents
+}
+
+bool utils::fileExists(std::string fileLoc)
+{
+    return access(fileLoc.c_str(), F_OK) == 0;
 }
 
 std::string utils::GetReadableTime()

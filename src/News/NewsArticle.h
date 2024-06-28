@@ -6,5 +6,4 @@ struct NewsArticle {
     std::string description;
     std::string URL;
     std::string publishedAt;
-
 };
